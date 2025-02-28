@@ -44,6 +44,18 @@ pip install -r requirements.txt
 python app.py
 ```
 
+## Running Locally with Docker
+
+1. Build the container image:
+```bash
+docker build -t jira-work-logger .
+```
+
+2. Run the container:
+```bash
+docker run --rm -p 5000:5000 jira-work-logger
+```
+
 3. Access the application at `http://localhost:5000`
 
 ## Usage
