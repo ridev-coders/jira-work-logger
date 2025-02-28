@@ -36,7 +36,7 @@ class JiraWorklogAPI:
         self,
         issue_key: str,
         time_spent_minutes: int,
-        start_time: Optional[datetime] = None,
+        start_time: datetime,
         comment: str = "",
         adjust_estimate: str = "new",
         new_estimate: str = "0m"
@@ -47,7 +47,7 @@ class JiraWorklogAPI:
         Args:
             issue_key: The Jira issue key (e.g., 'AI-152')
             time_spent_minutes: Time spent in minutes
-            start_time: When the work started (defaults to now if not specified)
+            start_time: When the work started (required)
             comment: Optional comment for the worklog
             adjust_estimate: How to adjust the remaining estimate ('new', 'leave', 'manual', 'auto')
             new_estimate: New estimate when adjust_estimate is 'new'
@@ -55,9 +55,6 @@ class JiraWorklogAPI:
         Returns:
             Response from Jira API
         """
-        if start_time is None:
-            start_time = datetime.now()
-            
         url = f"{self.base_url}/rest/internal/3/issue/{issue_key}/worklog"
         
         params = {
@@ -110,10 +107,12 @@ def main():
         config = JiraWorklogConfig.from_env()
         api = JiraWorklogAPI(config)
         
-        # Example: Log 4 hours of work
+        # Example: Log 4 hours of work for today at 14:00
+        start_time = datetime.now().replace(hour=14, minute=0, second=0, microsecond=0)
         response = api.log_work(
             issue_key="AI-152",
             time_spent_minutes=240,  # 4 hours
+            start_time=start_time,
             comment="Development work"
         )
         print("Work logged successfully:", json.dumps(response, indent=2))
