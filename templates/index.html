@@ -21,6 +21,13 @@
         .selected-time {
             background-color: #a8d5ff !important;
         }
+        .submitted-time {
+            background-color: #28a745 !important;
+            border-color: #28a745 !important;
+        }
+        .submitted-time .fc-event-title {
+            padding: 2px 4px;
+        }
         .event-summary {
             margin: 20px;
             padding: 15px;
@@ -58,6 +65,12 @@
                             <label for="endTime" class="form-label">End Time</label>
                             <input type="time" class="form-control" id="endTime" value="19:00">
                         </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="devMode">
+                            <label class="form-check-label" for="devMode">
+                                Developer Mode
+                            </label>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -71,15 +84,17 @@
                         <form id="workLogForm">
                             <div class="mb-3">
                                 <label for="issueKey" class="form-label">Jira Issue Key</label>
-                                <input type="text" class="form-control" id="issueKey" required value="AI-152">
-                            </div>
-                            <div class="mb-3">
-                                <label for="comment" class="form-label">Comment</label>
-                                <textarea class="form-control" id="comment" rows="3"></textarea>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="issueKey" required value="AI-152">
+                                    <a href="https://foundever.atlassian.net/browse/AI-152" class="btn btn-outline-secondary" target="_blank">
+                                        View Issue
+                                    </a>
+                                </div>
                             </div>
                             <div class="d-flex gap-2">
                                 <button type="submit" class="btn btn-primary" id="submitWork">Submit Work Logs</button>
-                                <button type="button" class="btn btn-danger" id="clearAll">Clear All</button>
+                                <button type="button" class="btn btn-danger" id="clearAll">Clear Unsubmitted</button>
+                                <button type="button" class="btn btn-danger d-none" id="clearEverything">Clear All (Including Synced)</button>
                             </div>
                         </form>
                         
@@ -99,6 +114,25 @@
         </div>
     </div>
 
+    <!-- Success Modal -->
+    <div class="modal fade" id="successModal" tabindex="-1" aria-labelledby="successModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="successModalLabel">Success!</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Work logs submitted successfully!</p>
+                    <p>View the issue here: <a id="issueLink" href="#" target="_blank"></a></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -106,6 +140,8 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             let selectedEvents = [];
+            let submittedEvents = [];
+            let devMode = false;
             
             const calendarEl = document.getElementById('calendar');
             let calendar;
@@ -128,6 +164,55 @@
             function saveTimeSettings(startTime, endTime) {
                 localStorage.setItem('workingHoursStart', startTime);
                 localStorage.setItem('workingHoursEnd', endTime);
+            }
+
+            // Save selected events to localStorage
+            function saveSelectedEvents() {
+                localStorage.setItem('selectedEvents', JSON.stringify(selectedEvents));
+            }
+
+            // Save submitted events to localStorage
+            function saveSubmittedEvents() {
+                localStorage.setItem('submittedEvents', JSON.stringify(submittedEvents));
+            }
+
+            // Load selected events from localStorage
+            function loadSelectedEvents() {
+                const savedEvents = localStorage.getItem('selectedEvents');
+                if (savedEvents) {
+                    const events = JSON.parse(savedEvents);
+                    events.forEach(event => {
+                        const isSubmitted = isEventSubmitted(event);
+                        calendar.addEvent({
+                            start: event.start,
+                            end: event.end,
+                            display: 'block',
+                            backgroundColor: isSubmitted ? '#28a745' : '#a8d5ff',
+                            borderColor: isSubmitted ? '#28a745' : '#a8d5ff',
+                            classNames: isSubmitted ? ['submitted-time'] : ['selected-time'],
+                            title: isSubmitted ? '✓ Synced with Jira' : '',
+                            editable: false
+                        });
+                    });
+                    selectedEvents = events;
+                    updateEventSummary();
+                }
+            }
+
+            // Load submitted events from localStorage
+            function loadSubmittedEvents() {
+                const savedSubmittedEvents = localStorage.getItem('submittedEvents');
+                if (savedSubmittedEvents) {
+                    submittedEvents = JSON.parse(savedSubmittedEvents);
+                }
+            }
+
+            // Check if an event has been submitted
+            function isEventSubmitted(event) {
+                return submittedEvents.some(submittedEvent => 
+                    submittedEvent.start === event.start && 
+                    event.end === submittedEvent.end
+                );
             }
 
             function initializeCalendar(startTime, endTime) {
@@ -165,11 +250,13 @@
                             backgroundColor: '#a8d5ff',
                             borderColor: '#a8d5ff',
                             classNames: ['selected-time'],
+                            title: '',
                             editable: false
                         };
                         calendar.addEvent(event);
                         selectedEvents.push(event);
                         updateEventSummary();
+                        saveSelectedEvents();
                     },
                     eventClick: function(info) {
                         if (info.event.classNames.includes('selected-time')) {
@@ -179,21 +266,43 @@
                             );
                             info.event.remove();
                             updateEventSummary();
+                            saveSelectedEvents();
                         }
                     },
                     eventDidMount: function(info) {
                         if (info.event.classNames.includes('selected-time')) {
                             info.el.style.backgroundColor = '#a8d5ff';
                             info.el.style.borderColor = '#a8d5ff';
+                        } else if (info.event.classNames.includes('submitted-time')) {
+                            info.el.style.backgroundColor = '#28a745';
+                            info.el.style.borderColor = '#28a745';
                         }
                     }
                 });
                 
                 calendar.render();
+                loadSelectedEvents();
+            }
+
+            // Load developer mode setting from localStorage
+            function loadDevMode() {
+                const savedDevMode = localStorage.getItem('devMode') === 'true';
+                document.getElementById('devMode').checked = savedDevMode;
+                devMode = savedDevMode;
+                document.getElementById('clearEverything').classList.toggle('d-none', !devMode);
+            }
+
+            // Save developer mode setting to localStorage
+            function saveDevMode(enabled) {
+                localStorage.setItem('devMode', enabled);
+                devMode = enabled;
+                document.getElementById('clearEverything').classList.toggle('d-none', !enabled);
             }
 
             // Load saved settings and initialize calendar
             const savedTimes = loadTimeSettings();
+            loadSubmittedEvents();
+            loadDevMode();
             initializeCalendar(savedTimes.startTime, savedTimes.endTime);
 
             // Update time change listeners to save automatically
@@ -211,17 +320,49 @@
                 initializeCalendar(startTime + ':00', endTime + ':00');
             });
 
-            // Add clear all functionality
+            // Add developer mode toggle listener
+            document.getElementById('devMode').addEventListener('change', function() {
+                saveDevMode(this.checked);
+            });
+
+            // Update clear unsubmitted functionality
             document.getElementById('clearAll').addEventListener('click', function() {
-                if (selectedEvents.length === 0) {
-                    alert('No time slots selected');
+                const unsubmittedEvents = selectedEvents.filter(event => !isEventSubmitted(event));
+                
+                if (unsubmittedEvents.length === 0) {
+                    alert('No unsubmitted time slots to clear');
                     return;
                 }
                 
-                if (confirm('Are you sure you want to clear all selected time slots?')) {
+                if (confirm('Are you sure you want to clear all unsubmitted time slots?')) {
+                    // Remove unsubmitted events from the calendar
+                    calendar.getEvents().forEach(event => {
+                        if (event.classNames.includes('selected-time')) {
+                            event.remove();
+                        }
+                    });
+
+                    // Filter out unsubmitted events from selectedEvents
+                    selectedEvents = selectedEvents.filter(event => isEventSubmitted(event));
+                    saveSelectedEvents();
+                    updateEventSummary();
+                }
+            });
+
+            // Add clear everything button listener (dev mode)
+            document.getElementById('clearEverything').addEventListener('click', function() {
+                if (selectedEvents.length === 0) {
+                    alert('No time slots to clear');
+                    return;
+                }
+                
+                if (confirm('Are you sure you want to clear ALL time slots, including those synced with Jira?')) {
                     selectedEvents = [];
+                    submittedEvents = [];
                     calendar.getEvents().forEach(event => event.remove());
                     updateEventSummary();
+                    localStorage.removeItem('selectedEvents');
+                    localStorage.removeItem('submittedEvents');
                 }
             });
 
@@ -231,11 +372,13 @@
                     const start = new Date(event.start);
                     const end = new Date(event.end);
                     const duration = (end - start) / (1000 * 60); // Duration in minutes
+                    const isSubmitted = isEventSubmitted(event);
                     return `
-                        <div class="alert alert-info">
+                        <div class="alert ${isSubmitted ? 'alert-success' : 'alert-info'}">
                             ${start.toLocaleTimeString()} - ${end.toLocaleTimeString()}
                             <br>
                             Duration: ${duration} minutes
+                            ${isSubmitted ? '<br><small class="text-muted">(Already submitted)</small>' : ''}
                         </div>
                     `;
                 }).join('');
@@ -249,13 +392,19 @@
                     return;
                 }
 
-                const issueKey = document.getElementById('issueKey').value;
-                const comment = document.getElementById('comment').value;
+                // Filter out already submitted events
+                const newEvents = selectedEvents.filter(event => !isEventSubmitted(event));
 
-                // Add comment to each event
-                const eventsWithComments = selectedEvents.map(event => ({
+                if (newEvents.length === 0) {
+                    alert('All selected time slots have already been submitted');
+                    return;
+                }
+
+                const issueKey = document.getElementById('issueKey').value;
+
+                const eventsWithComments = newEvents.map(event => ({
                     ...event,
-                    comment: comment
+                    comment: ""
                 }));
 
                 document.querySelector('.loading').style.display = 'flex';
@@ -275,12 +424,30 @@
                     const result = await response.json();
                     
                     if (result.success) {
-                        alert('Work logs submitted successfully!');
-                        // Clear selections
-                        selectedEvents = [];
-                        calendar.getEvents().forEach(event => event.remove());
+                        // Add successfully submitted events to submittedEvents
+                        submittedEvents.push(...newEvents);
+                        saveSubmittedEvents();
+                        
+                        // Update the calendar events to show as submitted
+                        calendar.getEvents().forEach(event => {
+                            if (newEvents.some(newEvent => 
+                                newEvent.start === event.startStr && 
+                                newEvent.end === event.endStr
+                            )) {
+                                event.setProp('backgroundColor', '#28a745');
+                                event.setProp('borderColor', '#28a745');
+                                event.setProp('classNames', ['submitted-time']);
+                                event.setProp('title', '✓ Synced with Jira');
+                            }
+                        });
+                        
                         updateEventSummary();
-                        document.getElementById('workLogForm').reset();
+
+                        const issueUrl = `https://foundever.atlassian.net/browse/${issueKey}`;
+                        const successModal = new bootstrap.Modal(document.getElementById('successModal'));
+                        document.getElementById('issueLink').href = issueUrl;
+                        document.getElementById('issueLink').textContent = issueUrl;
+                        successModal.show();
                     } else {
                         alert('Error: ' + result.error);
                     }
@@ -293,4 +460,4 @@
         });
     </script>
 </body>
-</html> 
+</html>
