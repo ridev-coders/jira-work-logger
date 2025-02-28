@@ -95,6 +95,30 @@
                             <label for="endTime" class="form-label">End Time</label>
                             <input type="time" class="form-control" id="endTime" value="19:00">
                         </div>
+                        <div class="mb-3">
+                            <label for="startDay" class="form-label">Start Day</label>
+                            <select class="form-control" id="startDay">
+                                <option value="0">Sunday</option>
+                                <option value="1" selected>Monday</option>
+                                <option value="2">Tuesday</option>
+                                <option value="3">Wednesday</option>
+                                <option value="4">Thursday</option>
+                                <option value="5">Friday</option>
+                                <option value="6">Saturday</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="endDay" class="form-label">End Day</label>
+                            <select class="form-control" id="endDay">
+                                <option value="0">Sunday</option>
+                                <option value="1">Monday</option>
+                                <option value="2">Tuesday</option>
+                                <option value="3">Wednesday</option>
+                                <option value="4">Thursday</option>
+                                <option value="5" selected>Friday</option>
+                                <option value="6">Saturday</option>
+                            </select>
+                        </div>
                         <div class="form-check mb-3">
                             <input class="form-check-input" type="checkbox" id="devMode">
                             <label class="form-check-label" for="devMode">
@@ -180,20 +204,28 @@
             function loadTimeSettings() {
                 const savedStartTime = localStorage.getItem('workingHoursStart') || '08:00';
                 const savedEndTime = localStorage.getItem('workingHoursEnd') || '19:00';
+                const savedStartDay = localStorage.getItem('workingDayStart') || '1';
+                const savedEndDay = localStorage.getItem('workingDayEnd') || '5';
                 
                 document.getElementById('startTime').value = savedStartTime;
                 document.getElementById('endTime').value = savedEndTime;
+                document.getElementById('startDay').value = savedStartDay;
+                document.getElementById('endDay').value = savedEndDay;
                 
                 return {
                     startTime: savedStartTime + ':00',
-                    endTime: savedEndTime + ':00'
+                    endTime: savedEndTime + ':00',
+                    startDay: parseInt(savedStartDay),
+                    endDay: parseInt(savedEndDay)
                 };
             }
 
             // Save time settings to localStorage
-            function saveTimeSettings(startTime, endTime) {
+            function saveTimeSettings(startTime, endTime, startDay, endDay) {
                 localStorage.setItem('workingHoursStart', startTime);
                 localStorage.setItem('workingHoursEnd', endTime);
+                localStorage.setItem('workingDayStart', startDay);
+                localStorage.setItem('workingDayEnd', endDay);
             }
 
             // Save selected events to localStorage
@@ -250,6 +282,8 @@
                     calendar.destroy();
                 }
                 
+                const settings = loadTimeSettings();
+                
                 calendar = new FullCalendar.Calendar(calendarEl, {
                     headerToolbar: {
                         left: 'prev,next today',
@@ -265,8 +299,11 @@
                     nowIndicator: true,
                     height: 'auto',
                     expandRows: true,
+                    hiddenDays: [...Array(7).keys()].filter(day => 
+                        day < settings.startDay || day > settings.endDay
+                    ),
                     businessHours: {
-                        daysOfWeek: [1, 2, 3, 4, 5],
+                        daysOfWeek: [...Array(settings.endDay - settings.startDay + 1).keys()].map(x => x + settings.startDay),
                         startTime: startTime,
                         endTime: endTime,
                     },
@@ -377,14 +414,51 @@
             document.getElementById('startTime').addEventListener('change', function() {
                 const startTime = this.value;
                 const endTime = document.getElementById('endTime').value;
-                saveTimeSettings(startTime, endTime);
+                const startDay = document.getElementById('startDay').value;
+                const endDay = document.getElementById('endDay').value;
+                saveTimeSettings(startTime, endTime, startDay, endDay);
                 initializeCalendar(startTime + ':00', endTime + ':00');
             });
 
             document.getElementById('endTime').addEventListener('change', function() {
                 const startTime = document.getElementById('startTime').value;
                 const endTime = this.value;
-                saveTimeSettings(startTime, endTime);
+                const startDay = document.getElementById('startDay').value;
+                const endDay = document.getElementById('endDay').value;
+                saveTimeSettings(startTime, endTime, startDay, endDay);
+                initializeCalendar(startTime + ':00', endTime + ':00');
+            });
+
+            // Add day range change listeners
+            document.getElementById('startDay').addEventListener('change', function() {
+                const startTime = document.getElementById('startTime').value;
+                const endTime = document.getElementById('endTime').value;
+                const startDay = this.value;
+                const endDay = document.getElementById('endDay').value;
+                
+                if (parseInt(startDay) > parseInt(endDay)) {
+                    alert('Start day cannot be after end day');
+                    this.value = localStorage.getItem('workingDayStart') || '1';
+                    return;
+                }
+                
+                saveTimeSettings(startTime, endTime, startDay, endDay);
+                initializeCalendar(startTime + ':00', endTime + ':00');
+            });
+
+            document.getElementById('endDay').addEventListener('change', function() {
+                const startTime = document.getElementById('startTime').value;
+                const endTime = document.getElementById('endTime').value;
+                const startDay = document.getElementById('startDay').value;
+                const endDay = this.value;
+                
+                if (parseInt(startDay) > parseInt(endDay)) {
+                    alert('End day cannot be before start day');
+                    this.value = localStorage.getItem('workingDayEnd') || '5';
+                    return;
+                }
+                
+                saveTimeSettings(startTime, endTime, startDay, endDay);
                 initializeCalendar(startTime + ':00', endTime + ':00');
             });
 
