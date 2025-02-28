@@ -44,6 +44,8 @@ pip install -r requirements.txt
 python app.py
 ```
 
+3. Access the application at `http://localhost:5000`
+
 ## Running Locally with Docker
 
 1. Build the container image:
