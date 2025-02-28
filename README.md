@@ -1,140 +1,97 @@
-# Jira Worklog API
+# Jira Work Logger
 
-A simple Python API to log work time in Jira issues. This tool allows you to programmatically log your work hours without using the Jira web interface.
+A web-based calendar application for logging work hours to Jira issues. Built with Flask, FullCalendar, and Bootstrap.
 
-## Prerequisites
+## Features
 
-- Python 3.6 or higher
-- A Jira account with API token
-- Access to your Jira instance
+### Calendar Interface
+- Interactive weekly calendar view
+- Customizable working hours and days
+- Visual distinction between submitted and unsubmitted time slots
+- Resize time slots by dragging edges
+- Delete unsubmitted time slots with one click
+- Real-time summary of selected time slots
+
+### Time Management
+- Set custom start and end times for working hours
+- Configure working days (e.g., Monday to Friday)
+- 30-minute time slot intervals
+- Today indicator and business hours highlighting
+- Automatic time zone handling
+
+### Jira Integration
+- Direct work log submission to Jira issues
+- Secure credential management
+- Support for Jira API tokens
+- Visual confirmation of successful submissions
+- Links to Jira issues for quick access
+
+### User Settings
+- Remember working hours preferences
+- Optional credential storage (session or persistent)
+- Developer mode for advanced features
+- Clear all functionality for stored data
 
 ## Setup
 
-1. Clone this repository or download the files:
-   - `jira_worklog.py`
-   - `requirements.txt`
-   - `config.env`
+1. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
 
-2. Install the required dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+2. Run the application:
+```bash
+python app.py
+```
 
-3. Set up your Jira API token:
-   - Go to https://id.atlassian.com/manage-profile/security/api-tokens
-   - Click "Create API token"
-   - Give it a meaningful name (e.g., "Worklog API")
-   - Copy the generated token
-
-4. Configure your credentials:
-   - Copy the `config.env` file
-   - Fill in your details:
-     ```env
-     JIRA_EMAIL=your.email@foundever.com
-     JIRA_API_TOKEN=your-api-token
-     JIRA_INSTANCE=foundever.atlassian.net
-     ```
+3. Access the application at `http://localhost:5000`
 
 ## Usage
 
-### Basic Usage
+### First Time Setup
+1. Click "Manage Credentials" to enter your Jira credentials:
+   - Jira email address
+   - API token (get it from [Atlassian API Tokens](https://id.atlassian.com/manage-profile/security/api-tokens))
+   - Choose whether to remember credentials
 
-Run the script directly with the example configuration:
+### Logging Work
+1. Select time slots on the calendar by clicking and dragging
+2. Enter the Jira issue key (e.g., "AI-152")
+3. Click "Submit Work Logs" to sync with Jira
+4. View confirmation and access the issue directly through provided links
 
-```bash
-python jira_worklog.py
-```
+### Managing Time Slots
+- Resize: Drag the top or bottom edge of any unsubmitted time slot
+- Delete: Click the "×" button on any unsubmitted time slot
+- Clear: Use "Clear Unsubmitted" to remove all unsubmitted slots
+- Developer Mode: Enable to access additional clearing options
 
-### Using in Your Own Code
+### Customizing Calendar
+- Set working hours using the start and end time inputs
+- Select working days using the start and end day dropdowns
+- Settings are automatically saved and persisted
 
-```python
-from jira_worklog import JiraWorklogConfig, JiraWorklogAPI
-from datetime import datetime
+## Security
+- Credentials can be stored in browser storage (optional)
+- API tokens are used instead of passwords
+- Secure communication with Jira API
+- No server-side credential storage
 
-# Load config from environment variables
-config = JiraWorklogConfig.from_env()
-api = JiraWorklogAPI(config)
+## Technical Details
+- Frontend: HTML5, JavaScript, Bootstrap 5, FullCalendar 5
+- Backend: Flask, Python
+- Authentication: Jira API tokens
+- Storage: Browser localStorage/sessionStorage
+- Calendar: FullCalendar with time grid view
 
-# Log work example
-response = api.log_work(
-    issue_key="PROJECT-123",      # Your Jira issue key
-    time_spent_minutes=240,       # 4 hours
-    comment="Development work",   # Optional comment
-    start_time=datetime.now()     # Optional start time
-)
-```
+## Browser Support
+- Chrome (recommended)
+- Firefox
+- Safari
+- Edge
 
-### API Parameters
-
-The `log_work` method accepts the following parameters:
-
-- `issue_key` (required): The Jira issue key (e.g., 'AI-152')
-- `time_spent_minutes` (required): Time spent in minutes
-- `start_time` (required): When the work started (datetime object)
-- `comment` (optional): Comment for the worklog
-- `adjust_estimate` (optional): How to adjust the remaining estimate ('new', 'leave', 'manual', 'auto')
-- `new_estimate` (optional): New estimate when adjust_estimate is 'new'
-
-## Examples
-
-### Log 2 Hours of Work
-
-```python
-from datetime import datetime
-
-# Log work for today at 14:00
-start_time = datetime.now().replace(hour=14, minute=0, second=0, microsecond=0)
-api.log_work(
-    issue_key="AI-152",
-    time_spent_minutes=120,  # 2 hours
-    start_time=start_time,
-    comment="Feature development"
-)
-```
-
-### Log Work for a Specific Time
-
-```python
-from datetime import datetime
-
-# Log work for a specific date/time
-start_time = datetime(2024, 2, 24, 14, 0)  # 2024-02-24 14:00
-api.log_work(
-    issue_key="AI-152",
-    time_spent_minutes=180,  # 3 hours
-    start_time=start_time,
-    comment="Code review and testing"
-)
-```
-
-## Error Handling
-
-The API will raise exceptions in the following cases:
-- Invalid credentials or API token
-- Network connectivity issues
-- Invalid issue key
-- Server-side errors
-
-Example with error handling:
-
-```python
-try:
-    response = api.log_work(
-        issue_key="AI-152",
-        time_spent_minutes=60
-    )
-    print("Work logged successfully!")
-except requests.exceptions.RequestException as e:
-    print(f"Error logging work: {e}")
-```
-
-## Security Notes
-
-1. Never commit your `config.env` file to version control
-2. Add `config.env` to your `.gitignore` file
-3. Keep your API token secure and rotate it periodically
-4. Use environment-specific configuration for different environments
-
-## Contributing
-
-Feel free to submit issues and enhancement requests! 
+## Notes
+- Time slots are minimum 30 minutes
+- All times are handled in the user's local timezone
+- Submitted work logs cannot be modified through the interface
+- Clear browser data to reset all settings and stored credentials 
