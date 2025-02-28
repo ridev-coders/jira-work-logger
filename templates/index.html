@@ -20,10 +20,12 @@
         }
         .selected-time {
             background-color: #a8d5ff !important;
+            cursor: pointer;
         }
         .submitted-time {
             background-color: #28a745 !important;
             border-color: #28a745 !important;
+            cursor: not-allowed;
         }
         .submitted-time .fc-event-title {
             padding: 2px 4px;
@@ -45,6 +47,34 @@
             justify-content: center;
             align-items: center;
             z-index: 1000;
+        }
+        .fc-event-resizer {
+            display: block !important;
+            cursor: ns-resize;
+        }
+        .submitted-time .fc-event-resizer {
+            display: none !important;
+        }
+        .delete-event {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            width: 16px;
+            height: 16px;
+            line-height: 14px;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 12px;
+            z-index: 10;
+            display: none;
+        }
+        .selected-time:hover .delete-event {
+            display: block;
+        }
+        .submitted-time .delete-event {
+            display: none !important;
         }
     </style>
 </head>
@@ -242,6 +272,64 @@
                     },
                     scrollTime: startTime,
                     slotDuration: '00:30:00',
+                    editable: true,
+                    eventResizableFromStart: true,
+                    eventDurationEditable: true,
+                    eventStartEditable: false, // Prevent dragging, only allow resizing
+                    eventResize: function(info) {
+                        // Only allow resizing unsubmitted events
+                        if (info.event.classNames.includes('submitted-time')) {
+                            info.revert();
+                            return;
+                        }
+
+                        // Update the event in selectedEvents
+                        const index = selectedEvents.findIndex(e => 
+                            e.start === info.oldEvent.startStr && 
+                            e.end === info.oldEvent.endStr
+                        );
+                        if (index !== -1) {
+                            selectedEvents[index] = {
+                                start: info.event.startStr,
+                                end: info.event.endStr,
+                                display: 'block',
+                                backgroundColor: '#a8d5ff',
+                                borderColor: '#a8d5ff',
+                                classNames: ['selected-time'],
+                                title: '',
+                                editable: true
+                            };
+                            saveSelectedEvents();
+                            updateEventSummary();
+                        }
+                    },
+                    eventDidMount: function(info) {
+                        if (info.event.classNames.includes('selected-time')) {
+                            info.el.style.backgroundColor = '#a8d5ff';
+                            info.el.style.borderColor = '#a8d5ff';
+                            
+                            // Add delete button for unsubmitted events
+                            const deleteButton = document.createElement('div');
+                            deleteButton.className = 'delete-event';
+                            deleteButton.innerHTML = '×';
+                            deleteButton.addEventListener('click', function(e) {
+                                e.stopPropagation();
+                                if (confirm('Remove this time slot?')) {
+                                    selectedEvents = selectedEvents.filter(event => 
+                                        event.start !== info.event.startStr || 
+                                        event.end !== info.event.endStr
+                                    );
+                                    info.event.remove();
+                                    saveSelectedEvents();
+                                    updateEventSummary();
+                                }
+                            });
+                            info.el.appendChild(deleteButton);
+                        } else if (info.event.classNames.includes('submitted-time')) {
+                            info.el.style.backgroundColor = '#28a745';
+                            info.el.style.borderColor = '#28a745';
+                        }
+                    },
                     select: function(info) {
                         const event = {
                             start: info.startStr,
@@ -251,32 +339,12 @@
                             borderColor: '#a8d5ff',
                             classNames: ['selected-time'],
                             title: '',
-                            editable: false
+                            editable: true
                         };
                         calendar.addEvent(event);
                         selectedEvents.push(event);
                         updateEventSummary();
                         saveSelectedEvents();
-                    },
-                    eventClick: function(info) {
-                        if (info.event.classNames.includes('selected-time')) {
-                            selectedEvents = selectedEvents.filter(e => 
-                                e.start !== info.event.startStr || 
-                                e.end !== info.event.endStr
-                            );
-                            info.event.remove();
-                            updateEventSummary();
-                            saveSelectedEvents();
-                        }
-                    },
-                    eventDidMount: function(info) {
-                        if (info.event.classNames.includes('selected-time')) {
-                            info.el.style.backgroundColor = '#a8d5ff';
-                            info.el.style.borderColor = '#a8d5ff';
-                        } else if (info.event.classNames.includes('submitted-time')) {
-                            info.el.style.backgroundColor = '#28a745';
-                            info.el.style.borderColor = '#28a745';
-                        }
                     }
                 });
                 
