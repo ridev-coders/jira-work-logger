@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jira Work Logger</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- FullCalendar CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <style>
+        #calendar {
+            margin: 20px auto;
+            padding: 0 10px;
+            height: 700px;  /* Added fixed height */
+        }
+        .selected-time {
+            background-color: #a8d5ff !important;
+        }
+        .event-summary {
+            margin: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <h1 class="text-center mt-4">Jira Work Logger</h1>
+        
+        <div class="row mt-4">
+            <div class="col-md-2">
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h5 class="card-title">Calendar Settings</h5>
+                        <div class="mb-3">
+                            <label for="startTime" class="form-label">Start Time</label>
+                            <input type="time" class="form-control" id="startTime" value="08:00">
+                        </div>
+                        <div class="mb-3">
+                            <label for="endTime" class="form-label">End Time</label>
+                            <input type="time" class="form-control" id="endTime" value="19:00">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-7">
+                <div id="calendar"></div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Log Work</h5>
+                        <form id="workLogForm">
+                            <div class="mb-3">
+                                <label for="issueKey" class="form-label">Jira Issue Key</label>
+                                <input type="text" class="form-control" id="issueKey" required value="AI-152">
+                            </div>
+                            <div class="mb-3">
+                                <label for="comment" class="form-label">Comment</label>
+                                <textarea class="form-control" id="comment" rows="3"></textarea>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary" id="submitWork">Submit Work Logs</button>
+                                <button type="button" class="btn btn-danger" id="clearAll">Clear All</button>
+                            </div>
+                        </form>
+                        
+                        <div class="event-summary mt-4">
+                            <h6>Selected Time Slots</h6>
+                            <div id="selectedEvents"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="loading">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            let selectedEvents = [];
+            
+            const calendarEl = document.getElementById('calendar');
+            let calendar;
+
+            // Load saved time settings from localStorage
+            function loadTimeSettings() {
+                const savedStartTime = localStorage.getItem('workingHoursStart') || '08:00';
+                const savedEndTime = localStorage.getItem('workingHoursEnd') || '19:00';
+                
+                document.getElementById('startTime').value = savedStartTime;
+                document.getElementById('endTime').value = savedEndTime;
+                
+                return {
+                    startTime: savedStartTime + ':00',
+                    endTime: savedEndTime + ':00'
+                };
+            }
+
+            // Save time settings to localStorage
+            function saveTimeSettings(startTime, endTime) {
+                localStorage.setItem('workingHoursStart', startTime);
+                localStorage.setItem('workingHoursEnd', endTime);
+            }
+
+            function initializeCalendar(startTime, endTime) {
+                if (calendar) {
+                    calendar.destroy();
+                }
+                
+                calendar = new FullCalendar.Calendar(calendarEl, {
+                    headerToolbar: {
+                        left: 'prev,next today',
+                        center: 'title',
+                        right: 'timeGridWeek,timeGridDay'
+                    },
+                    initialView: 'timeGridWeek',
+                    slotMinTime: startTime,
+                    slotMaxTime: endTime,
+                    allDaySlot: false,
+                    selectable: true,
+                    selectMirror: true,
+                    nowIndicator: true,
+                    height: 'auto',
+                    expandRows: true,
+                    businessHours: {
+                        daysOfWeek: [1, 2, 3, 4, 5],
+                        startTime: startTime,
+                        endTime: endTime,
+                    },
+                    scrollTime: startTime,
+                    slotDuration: '00:30:00',
+                    select: function(info) {
+                        const event = {
+                            start: info.startStr,
+                            end: info.endStr,
+                            display: 'block',
+                            backgroundColor: '#a8d5ff',
+                            borderColor: '#a8d5ff',
+                            classNames: ['selected-time'],
+                            editable: false
+                        };
+                        calendar.addEvent(event);
+                        selectedEvents.push(event);
+                        updateEventSummary();
+                    },
+                    eventClick: function(info) {
+                        if (info.event.classNames.includes('selected-time')) {
+                            selectedEvents = selectedEvents.filter(e => 
+                                e.start !== info.event.startStr || 
+                                e.end !== info.event.endStr
+                            );
+                            info.event.remove();
+                            updateEventSummary();
+                        }
+                    },
+                    eventDidMount: function(info) {
+                        if (info.event.classNames.includes('selected-time')) {
+                            info.el.style.backgroundColor = '#a8d5ff';
+                            info.el.style.borderColor = '#a8d5ff';
+                        }
+                    }
+                });
+                
+                calendar.render();
+            }
+
+            // Load saved settings and initialize calendar
+            const savedTimes = loadTimeSettings();
+            initializeCalendar(savedTimes.startTime, savedTimes.endTime);
+
+            // Update time change listeners to save automatically
+            document.getElementById('startTime').addEventListener('change', function() {
+                const startTime = this.value;
+                const endTime = document.getElementById('endTime').value;
+                saveTimeSettings(startTime, endTime);
+                initializeCalendar(startTime + ':00', endTime + ':00');
+            });
+
+            document.getElementById('endTime').addEventListener('change', function() {
+                const startTime = document.getElementById('startTime').value;
+                const endTime = this.value;
+                saveTimeSettings(startTime, endTime);
+                initializeCalendar(startTime + ':00', endTime + ':00');
+            });
+
+            // Add clear all functionality
+            document.getElementById('clearAll').addEventListener('click', function() {
+                if (selectedEvents.length === 0) {
+                    alert('No time slots selected');
+                    return;
+                }
+                
+                if (confirm('Are you sure you want to clear all selected time slots?')) {
+                    selectedEvents = [];
+                    calendar.getEvents().forEach(event => event.remove());
+                    updateEventSummary();
+                }
+            });
+
+            function updateEventSummary() {
+                const summaryDiv = document.getElementById('selectedEvents');
+                summaryDiv.innerHTML = selectedEvents.map(event => {
+                    const start = new Date(event.start);
+                    const end = new Date(event.end);
+                    const duration = (end - start) / (1000 * 60); // Duration in minutes
+                    return `
+                        <div class="alert alert-info">
+                            ${start.toLocaleTimeString()} - ${end.toLocaleTimeString()}
+                            <br>
+                            Duration: ${duration} minutes
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            document.getElementById('workLogForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                if (selectedEvents.length === 0) {
+                    alert('Please select at least one time slot');
+                    return;
+                }
+
+                const issueKey = document.getElementById('issueKey').value;
+                const comment = document.getElementById('comment').value;
+
+                // Add comment to each event
+                const eventsWithComments = selectedEvents.map(event => ({
+                    ...event,
+                    comment: comment
+                }));
+
+                document.querySelector('.loading').style.display = 'flex';
+
+                try {
+                    const response = await fetch('/api/log-work', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            issueKey: issueKey,
+                            events: eventsWithComments
+                        })
+                    });
+
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        alert('Work logs submitted successfully!');
+                        // Clear selections
+                        selectedEvents = [];
+                        calendar.getEvents().forEach(event => event.remove());
+                        updateEventSummary();
+                        document.getElementById('workLogForm').reset();
+                    } else {
+                        alert('Error: ' + result.error);
+                    }
+                } catch (error) {
+                    alert('Error submitting work logs: ' + error.message);
+                } finally {
+                    document.querySelector('.loading').style.display = 'none';
+                }
+            });
+        });
+    </script>
+</body>
+</html> 

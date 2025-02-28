@@ -70,7 +70,7 @@ The `log_work` method accepts the following parameters:
 
 - `issue_key` (required): The Jira issue key (e.g., 'AI-152')
 - `time_spent_minutes` (required): Time spent in minutes
-- `start_time` (optional): When the work started (defaults to current time)
+- `start_time` (required): When the work started (datetime object)
 - `comment` (optional): Comment for the worklog
 - `adjust_estimate` (optional): How to adjust the remaining estimate ('new', 'leave', 'manual', 'auto')
 - `new_estimate` (optional): New estimate when adjust_estimate is 'new'
@@ -80,9 +80,14 @@ The `log_work` method accepts the following parameters:
 ### Log 2 Hours of Work
 
 ```python
+from datetime import datetime
+
+# Log work for today at 14:00
+start_time = datetime.now().replace(hour=14, minute=0, second=0, microsecond=0)
 api.log_work(
     issue_key="AI-152",
     time_spent_minutes=120,  # 2 hours
+    start_time=start_time,
     comment="Feature development"
 )
 ```
