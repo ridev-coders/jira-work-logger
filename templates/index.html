@@ -11,6 +11,9 @@
     <!-- FullCalendar CSS -->
     <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
     
+    <!-- Bootstrap Icons CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    
     <!-- Custom CSS -->
     <style>
         #calendar {
@@ -125,6 +128,9 @@
                                 Developer Mode
                             </label>
                         </div>
+                        <button type="button" class="btn btn-secondary w-100" id="manageCredentials">
+                            Manage Credentials
+                        </button>
                     </div>
                 </div>
             </div>
@@ -187,6 +193,55 @@
         </div>
     </div>
 
+    <!-- Credentials Modal -->
+    <div class="modal fade" id="credentialsModal" tabindex="-1" aria-labelledby="credentialsModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="credentialsModalLabel">Jira Credentials</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="credentialsForm" autocomplete="on">
+                        <div class="mb-3">
+                            <label for="jiraEmail" class="form-label">Jira Email</label>
+                            <input type="email" class="form-control" id="jiraEmail" 
+                                   name="jiraEmail" 
+                                   autocomplete="username" 
+                                   required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="jiraToken" class="form-label">API Token</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="jiraToken" 
+                                       name="jiraToken"
+                                       autocomplete="current-password"
+                                       required>
+                                <button class="btn btn-outline-secondary" type="button" id="toggleToken">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                            <div class="form-text">
+                                Get your API token from <a href="https://id.atlassian.com/manage-profile/security/api-tokens" target="_blank">Atlassian API Tokens</a>
+                            </div>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="rememberMe" name="rememberMe">
+                            <label class="form-check-label" for="rememberMe">
+                                Remember my credentials
+                            </label>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger" id="clearCredentials">Clear Credentials</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="saveCredentials">Save Credentials</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -199,6 +254,7 @@
             
             const calendarEl = document.getElementById('calendar');
             let calendar;
+            let credentialsModal;
 
             // Load saved time settings from localStorage
             function loadTimeSettings() {
@@ -404,11 +460,136 @@
                 document.getElementById('clearEverything').classList.toggle('d-none', !enabled);
             }
 
+            // Check if credentials are set
+            async function checkCredentials() {
+                try {
+                    const response = await fetch('/api/check-credentials', {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (!result.hasEnvCredentials) {
+                        // No environment credentials, check for stored credentials
+                        const email = localStorage.getItem('jiraEmail') || sessionStorage.getItem('jiraEmail');
+                        const token = localStorage.getItem('jiraToken') || sessionStorage.getItem('jiraToken');
+                        
+                        if (!email || !token) {
+                            credentialsModal.show();
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error checking credentials:', error);
+                    credentialsModal.show();
+                }
+            }
+
+            // Save credentials securely
+            async function saveCredentials() {
+                const email = document.getElementById('jiraEmail').value;
+                const token = document.getElementById('jiraToken').value;
+                const rememberMe = document.getElementById('rememberMe').checked;
+                
+                if (email && token) {
+                    // Validate credentials with server first
+                    try {
+                        const response = await fetch('/api/validate-credentials', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                email: email,
+                                token: token
+                            })
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (result.valid) {
+                            if (rememberMe) {
+                                // Only save in localStorage if user explicitly opts in
+                                localStorage.setItem('jiraEmail', email);
+                                localStorage.setItem('jiraToken', token);
+                            } else {
+                                // If not remembering, only keep in session
+                                sessionStorage.setItem('jiraEmail', email);
+                                sessionStorage.setItem('jiraToken', token);
+                                // Clear any existing localStorage items
+                                localStorage.removeItem('jiraEmail');
+                                localStorage.removeItem('jiraToken');
+                            }
+                            credentialsModal.hide();
+                        } else {
+                            alert('Invalid credentials. Please check your email and API token.');
+                        }
+                    } catch (error) {
+                        console.error('Error validating credentials:', error);
+                        alert('Error validating credentials. Please try again.');
+                    }
+                }
+            }
+
+            // Initialize credentials modal
+            function initializeCredentialsModal() {
+                credentialsModal = new bootstrap.Modal(document.getElementById('credentialsModal'));
+                
+                // Load saved credentials if they exist
+                const emailInput = document.getElementById('jiraEmail');
+                const tokenInput = document.getElementById('jiraToken');
+                const rememberMeCheckbox = document.getElementById('rememberMe');
+                
+                // Try localStorage first, then sessionStorage
+                const email = localStorage.getItem('jiraEmail') || sessionStorage.getItem('jiraEmail') || '';
+                const token = localStorage.getItem('jiraToken') || sessionStorage.getItem('jiraToken') || '';
+                
+                emailInput.value = email;
+                tokenInput.value = token;
+                rememberMeCheckbox.checked = !!localStorage.getItem('jiraEmail');
+                
+                // Add event listeners
+                document.getElementById('saveCredentials').addEventListener('click', saveCredentials);
+                document.getElementById('manageCredentials').addEventListener('click', () => {
+                    // Refresh credentials when modal is opened
+                    emailInput.value = localStorage.getItem('jiraEmail') || sessionStorage.getItem('jiraEmail') || '';
+                    tokenInput.value = localStorage.getItem('jiraToken') || sessionStorage.getItem('jiraToken') || '';
+                    rememberMeCheckbox.checked = !!localStorage.getItem('jiraEmail');
+                    tokenInput.type = 'password'; // Reset to password type
+                    credentialsModal.show();
+                });
+
+                // Add toggle token visibility
+                document.getElementById('toggleToken').addEventListener('click', function() {
+                    const type = tokenInput.type === 'password' ? 'text' : 'password';
+                    tokenInput.type = type;
+                    this.innerHTML = `<i class="bi bi-eye${type === 'password' ? '' : '-slash'}"></i>`;
+                });
+
+                // Add clear credentials functionality
+                document.getElementById('clearCredentials').addEventListener('click', function() {
+                    if (confirm('Are you sure you want to clear your saved credentials?')) {
+                        localStorage.removeItem('jiraEmail');
+                        localStorage.removeItem('jiraToken');
+                        sessionStorage.removeItem('jiraEmail');
+                        sessionStorage.removeItem('jiraToken');
+                        emailInput.value = '';
+                        tokenInput.value = '';
+                        rememberMeCheckbox.checked = false;
+                        alert('Credentials cleared successfully');
+                    }
+                });
+            }
+
             // Load saved settings and initialize calendar
             const savedTimes = loadTimeSettings();
             loadSubmittedEvents();
             loadDevMode();
             initializeCalendar(savedTimes.startTime, savedTimes.endTime);
+            initializeCredentialsModal();
+            checkCredentials();
 
             // Update time change listeners to save automatically
             document.getElementById('startTime').addEventListener('change', function() {
@@ -529,6 +710,16 @@
             document.getElementById('workLogForm').addEventListener('submit', async function(e) {
                 e.preventDefault();
                 
+                // Get credentials from storage
+                const email = localStorage.getItem('jiraEmail') || sessionStorage.getItem('jiraEmail');
+                const token = localStorage.getItem('jiraToken') || sessionStorage.getItem('jiraToken');
+
+                if (!email || !token) {
+                    alert('Please set your Jira credentials first');
+                    credentialsModal.show();
+                    return;
+                }
+
                 if (selectedEvents.length === 0) {
                     alert('Please select at least one time slot');
                     return;
@@ -556,6 +747,8 @@
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
+                            'X-Jira-Email': email,
+                            'X-Jira-Token': token
                         },
                         body: JSON.stringify({
                             issueKey: issueKey,
