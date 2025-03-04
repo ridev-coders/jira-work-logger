@@ -6,8 +6,6 @@ from jira_worklog import JiraWorklogConfig, JiraWorklogAPI
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'  # Change this in production
 
-JIRA_BASE_URL = 'https://foundever.atlassian.net'
-
 @app.route('/')
 def index():
     """Render the calendar page."""
@@ -40,7 +38,7 @@ def log_work():
         jira_config = JiraWorklogConfig(
             email=email,
             api_token=token,
-            base_url=JIRA_BASE_URL
+            jira_instance='foundever.atlassian.net'
         )
         jira_api = JiraWorklogAPI(jira_config)
         
