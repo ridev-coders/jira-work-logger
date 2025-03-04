@@ -146,9 +146,9 @@
                                 <label for="issueKey" class="form-label">Jira Issue Key</label>
                                 <div class="input-group">
                                     <input type="text" class="form-control" id="issueKey" required value="AI-152">
-                                    <a href="https://foundever.atlassian.net/browse/AI-152" class="btn btn-outline-secondary" target="_blank">
+                                    <button type="button" class="btn btn-outline-secondary" id="viewIssueBtn">
                                         View Issue
-                                    </a>
+                                    </button>
                                 </div>
                             </div>
                             <div class="d-flex gap-2">
@@ -223,6 +223,17 @@
                             </div>
                             <div class="form-text">
                                 Get your API token from <a href="https://id.atlassian.com/manage-profile/security/api-tokens" target="_blank">Atlassian API Tokens</a>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="jiraInstance" class="form-label">Jira Instance URL</label>
+                            <input type="text" class="form-control" id="jiraInstance" 
+                                   name="jiraInstance"
+                                   placeholder="foundever.atlassian.net"
+                                   value="foundever.atlassian.net"
+                                   required>
+                            <div class="form-text">
+                                Your Jira instance URL (e.g., yourcompany.atlassian.net)
                             </div>
                         </div>
                         <div class="form-check mb-3">
@@ -491,9 +502,10 @@
             async function saveCredentials() {
                 const email = document.getElementById('jiraEmail').value;
                 const token = document.getElementById('jiraToken').value;
+                const instance = document.getElementById('jiraInstance').value;
                 const rememberMe = document.getElementById('rememberMe').checked;
                 
-                if (email && token) {
+                if (email && token && instance) {
                     // Validate credentials with server first
                     try {
                         const response = await fetch('/api/validate-credentials', {
@@ -503,7 +515,8 @@
                             },
                             body: JSON.stringify({
                                 email: email,
-                                token: token
+                                token: token,
+                                instance: instance
                             })
                         });
                         
@@ -514,13 +527,16 @@
                                 // Only save in localStorage if user explicitly opts in
                                 localStorage.setItem('jiraEmail', email);
                                 localStorage.setItem('jiraToken', token);
+                                localStorage.setItem('jiraInstance', instance);
                             } else {
                                 // If not remembering, only keep in session
                                 sessionStorage.setItem('jiraEmail', email);
                                 sessionStorage.setItem('jiraToken', token);
+                                sessionStorage.setItem('jiraInstance', instance);
                                 // Clear any existing localStorage items
                                 localStorage.removeItem('jiraEmail');
                                 localStorage.removeItem('jiraToken');
+                                localStorage.removeItem('jiraInstance');
                             }
                             credentialsModal.hide();
                         } else {
@@ -540,14 +556,17 @@
                 // Load saved credentials if they exist
                 const emailInput = document.getElementById('jiraEmail');
                 const tokenInput = document.getElementById('jiraToken');
+                const instanceInput = document.getElementById('jiraInstance');
                 const rememberMeCheckbox = document.getElementById('rememberMe');
                 
                 // Try localStorage first, then sessionStorage
                 const email = localStorage.getItem('jiraEmail') || sessionStorage.getItem('jiraEmail') || '';
                 const token = localStorage.getItem('jiraToken') || sessionStorage.getItem('jiraToken') || '';
+                const instance = localStorage.getItem('jiraInstance') || sessionStorage.getItem('jiraInstance') || 'foundever.atlassian.net';
                 
                 emailInput.value = email;
                 tokenInput.value = token;
+                instanceInput.value = instance;
                 rememberMeCheckbox.checked = !!localStorage.getItem('jiraEmail');
                 
                 // Add event listeners
@@ -556,6 +575,7 @@
                     // Refresh credentials when modal is opened
                     emailInput.value = localStorage.getItem('jiraEmail') || sessionStorage.getItem('jiraEmail') || '';
                     tokenInput.value = localStorage.getItem('jiraToken') || sessionStorage.getItem('jiraToken') || '';
+                    instanceInput.value = localStorage.getItem('jiraInstance') || sessionStorage.getItem('jiraInstance') || 'foundever.atlassian.net';
                     rememberMeCheckbox.checked = !!localStorage.getItem('jiraEmail');
                     tokenInput.type = 'password'; // Reset to password type
                     credentialsModal.show();
@@ -573,10 +593,13 @@
                     if (confirm('Are you sure you want to clear your saved credentials?')) {
                         localStorage.removeItem('jiraEmail');
                         localStorage.removeItem('jiraToken');
+                        localStorage.removeItem('jiraInstance');
                         sessionStorage.removeItem('jiraEmail');
                         sessionStorage.removeItem('jiraToken');
+                        sessionStorage.removeItem('jiraInstance');
                         emailInput.value = '';
                         tokenInput.value = '';
+                        instanceInput.value = 'foundever.atlassian.net';
                         rememberMeCheckbox.checked = false;
                         alert('Credentials cleared successfully');
                     }
@@ -713,6 +736,7 @@
                 // Get credentials from storage
                 const email = localStorage.getItem('jiraEmail') || sessionStorage.getItem('jiraEmail');
                 const token = localStorage.getItem('jiraToken') || sessionStorage.getItem('jiraToken');
+                const instance = localStorage.getItem('jiraInstance') || sessionStorage.getItem('jiraInstance') || 'foundever.atlassian.net';
 
                 if (!email || !token) {
                     alert('Please set your Jira credentials first');
@@ -748,7 +772,8 @@
                         headers: {
                             'Content-Type': 'application/json',
                             'X-Jira-Email': email,
-                            'X-Jira-Token': token
+                            'X-Jira-Token': token,
+                            'X-Jira-Instance': instance
                         },
                         body: JSON.stringify({
                             issueKey: issueKey,
@@ -778,7 +803,7 @@
                         
                         updateEventSummary();
 
-                        const issueUrl = `https://foundever.atlassian.net/browse/${issueKey}`;
+                        const issueUrl = `https://${instance}/browse/${issueKey}`;
                         const successModal = new bootstrap.Modal(document.getElementById('successModal'));
                         document.getElementById('issueLink').href = issueUrl;
                         document.getElementById('issueLink').textContent = issueUrl;
@@ -791,6 +816,19 @@
                 } finally {
                     document.querySelector('.loading').style.display = 'none';
                 }
+            });
+
+            // Add view issue button functionality
+            document.getElementById('viewIssueBtn').addEventListener('click', function() {
+                const issueKey = document.getElementById('issueKey').value;
+                if (!issueKey) {
+                    alert('Please enter a Jira issue key');
+                    return;
+                }
+                
+                const instance = localStorage.getItem('jiraInstance') || sessionStorage.getItem('jiraInstance') || 'foundever.atlassian.net';
+                const issueUrl = `https://${instance}/browse/${issueKey}`;
+                window.open(issueUrl, '_blank');
             });
         });
     </script>
