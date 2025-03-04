@@ -429,15 +429,13 @@
                             deleteButton.innerHTML = '×';
                             deleteButton.addEventListener('click', function(e) {
                                 e.stopPropagation();
-                                if (confirm('Remove this time slot?')) {
-                                    selectedEvents = selectedEvents.filter(event => 
-                                        event.start !== info.event.startStr || 
-                                        event.end !== info.event.endStr
-                                    );
-                                    info.event.remove();
-                                    saveSelectedEvents();
-                                    updateEventSummary();
-                                }
+                                selectedEvents = selectedEvents.filter(event => 
+                                    event.start !== info.event.startStr || 
+                                    event.end !== info.event.endStr
+                                );
+                                info.event.remove();
+                                saveSelectedEvents();
+                                updateEventSummary();
                             });
                             info.el.appendChild(deleteButton);
                         } else if (info.event.classNames.includes('submitted-time')) {
