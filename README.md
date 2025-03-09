@@ -60,6 +60,78 @@ docker run --rm -p 5000:5000 jira-work-logger
 
 3. Access the application at `http://localhost:5000`
 
+## Deployment to Google Cloud Run
+
+### Prerequisites
+
+1. Install the [Google Cloud SDK](https://cloud.google.com/sdk/docs/install)
+2. Make sure Docker is installed on your machine
+
+### Using Make Commands (Recommended)
+
+This project includes a Makefile with commands to simplify the deployment process:
+
+```bash
+# Authenticate with Google Cloud
+make gcloud-auth
+
+# Deploy the application (includes authentication, building, pushing, and deploying)
+make deploy
+
+# Build the Docker image only
+make build
+
+# Push the Docker image to Container Registry only
+make push
+
+# Deploy to Cloud Run only
+make gcloud-deploy
+
+# Open logs in browser
+make logs-browser
+
+# Show all available commands
+make help
+```
+
+### Manual Deployment Steps
+
+If you prefer to deploy manually or understand the process:
+
+1. **Authenticate with Google Cloud:**
+
+   ```bash
+   gcloud auth login
+   gcloud config set project jira-work-logger
+   ```
+
+2. **Build the Docker image:**
+
+   ```bash
+   docker build --tag gcr.io/jira-work-logger/jira-work-logger:latest .
+   ```
+
+3. **Push the image to Google Container Registry:**
+
+   ```bash
+   docker push gcr.io/jira-work-logger/jira-work-logger
+   ```
+
+4. **Deploy to Cloud Run:**
+
+   ```bash
+   gcloud run deploy jira-work-logger \
+     --image gcr.io/jira-work-logger/jira-work-logger \
+     --platform managed \
+     --region europe-southwest1 \
+     --allow-unauthenticated \
+     --timeout 300
+   ```
+
+5. **View the deployment:**
+
+   After deployment, Cloud Run will provide a URL where your application is available.
+
 ## Usage
 
 ### First Time Setup
@@ -108,4 +180,4 @@ docker run --rm -p 5000:5000 jira-work-logger
 - Time slots are minimum 30 minutes
 - All times are handled in the user's local timezone
 - Submitted work logs cannot be modified through the interface
-- Clear browser data to reset all settings and stored credentials 
+- Clear browser data to reset all settings and stored credentials
