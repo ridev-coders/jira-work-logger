@@ -122,4 +122,6 @@ def log_work():
         }), 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0',debug=True) 
+    # Get port from environment variable (for Cloud Run) or use 8080 as default
+    port = int(os.environ.get('PORT', 8080))
+    app.run(host='0.0.0.0', port=port, debug=False) 
