@@ -34,8 +34,9 @@ Dockerfile
 
 # Misc
 .DS_Store
-README.md
+# Exclude all markdown files except README.md
 *.md
+!README.md
 Makefile*
 .env
 *.env
