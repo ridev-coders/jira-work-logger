@@ -1,49 +1,56 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jira Work Logger</title>
-    
+
     <!-- Favicon -->
     <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}" type="image/x-icon">
     <link rel="shortcut icon" href="{{ url_for('static', filename='images/favicon.ico') }}" type="image/x-icon">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/favicon.png') }}">
-    
+
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    
+
     <!-- FullCalendar CSS -->
     <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
-    
+
     <!-- Bootstrap Icons CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
-    
+
     <!-- Custom CSS -->
     <style>
         #calendar {
             margin: 20px auto;
             padding: 0 10px;
-            height: 700px;  /* Added fixed height */
+            height: 700px;
+            /* Added fixed height */
         }
+        
         .selected-time {
             background-color: #a8d5ff !important;
             cursor: pointer;
         }
+        
         .submitted-time {
             background-color: #28a745 !important;
             border-color: #28a745 !important;
             cursor: not-allowed;
         }
+        
         .submitted-time .fc-event-title {
             padding: 2px 4px;
         }
+        
         .event-summary {
             margin: 20px;
             padding: 15px;
             border: 1px solid #ddd;
             border-radius: 5px;
         }
+        
         .loading {
             position: fixed;
             top: 0;
@@ -56,13 +63,16 @@
             align-items: center;
             z-index: 1000;
         }
+        
         .fc-event-resizer {
             display: block !important;
             cursor: ns-resize;
         }
+        
         .submitted-time .fc-event-resizer {
             display: none !important;
         }
+        
         .delete-event {
             position: absolute;
             top: 2px;
@@ -78,18 +88,21 @@
             z-index: 10;
             display: none;
         }
+        
         .selected-time:hover .delete-event {
             display: block;
         }
+        
         .submitted-time .delete-event {
             display: none !important;
         }
     </style>
 </head>
+
 <body>
     <div class="container-fluid">
         <h1 class="text-center mt-4">Jira Work Logger</h1>
-        
+
         <div class="row mt-4">
             <div class="col-md-2">
                 <div class="card mb-3">
@@ -162,12 +175,12 @@
                                 <button type="button" class="btn btn-danger d-none" id="clearEverything">Clear All (Including Synced)</button>
                             </div>
                         </form>
-                        
+
                         <div class="event-summary mt-4">
                             <h6>Unsubmitted Time Slots</h6>
                             <div id="selectedEvents"></div>
                         </div>
-                        
+
                         <div class="mt-3">
                             <button class="btn btn-sm btn-outline-secondary w-100" type="button" data-bs-toggle="collapse" data-bs-target="#submittedSummary" aria-expanded="false" aria-controls="submittedSummary">
                                 Show Submitted Time Slots
@@ -200,7 +213,9 @@
                 </div>
                 <div class="modal-body">
                     <p>Work logs submitted successfully!</p>
-                    <p>View the issue here: <a id="issueLink" href="#" target="_blank"></a></p>
+                    <p>View the issue here:
+                        <a id="issueLink" href="#" target="_blank"></a>
+                    </p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -221,18 +236,12 @@
                     <form id="credentialsForm" autocomplete="on">
                         <div class="mb-3">
                             <label for="jiraEmail" class="form-label">Jira Email</label>
-                            <input type="email" class="form-control" id="jiraEmail" 
-                                   name="jiraEmail" 
-                                   autocomplete="username" 
-                                   required>
+                            <input type="email" class="form-control" id="jiraEmail" name="jiraEmail" autocomplete="username" required>
                         </div>
                         <div class="mb-3">
                             <label for="jiraToken" class="form-label">API Token</label>
                             <div class="input-group">
-                                <input type="password" class="form-control" id="jiraToken" 
-                                       name="jiraToken"
-                                       autocomplete="current-password"
-                                       required>
+                                <input type="password" class="form-control" id="jiraToken" name="jiraToken" autocomplete="current-password" required>
                                 <button class="btn btn-outline-secondary" type="button" id="toggleToken">
                                     <i class="bi bi-eye"></i>
                                 </button>
@@ -243,11 +252,7 @@
                         </div>
                         <div class="mb-3">
                             <label for="jiraInstance" class="form-label">Jira Instance URL</label>
-                            <input type="text" class="form-control" id="jiraInstance" 
-                                   name="jiraInstance"
-                                   placeholder="foundever.atlassian.net"
-                                   value="foundever.atlassian.net"
-                                   required>
+                            <input type="text" class="form-control" id="jiraInstance" name="jiraInstance" placeholder="foundever.atlassian.net" value="foundever.atlassian.net" required>
                             <div class="form-text">
                                 Your Jira instance URL (e.g., yourcompany.atlassian.net)
                             </div>
@@ -278,7 +283,7 @@
             let selectedEvents = [];
             let submittedEvents = [];
             let devMode = false;
-            
+
             const calendarEl = document.getElementById('calendar');
             let calendar;
             let credentialsModal;
@@ -289,12 +294,12 @@
                 const savedEndTime = localStorage.getItem('workingHoursEnd') || '19:00';
                 const savedStartDay = localStorage.getItem('workingDayStart') || '1';
                 const savedEndDay = localStorage.getItem('workingDayEnd') || '5';
-                
+
                 document.getElementById('startTime').value = savedStartTime;
                 document.getElementById('endTime').value = savedEndTime;
                 document.getElementById('startDay').value = savedStartDay;
                 document.getElementById('endDay').value = savedEndDay;
-                
+
                 return {
                     startTime: savedStartTime + ':00',
                     endTime: savedEndTime + ':00',
@@ -354,8 +359,8 @@
 
             // Check if an event has been submitted
             function isEventSubmitted(event) {
-                return submittedEvents.some(submittedEvent => 
-                    submittedEvent.start === event.start && 
+                return submittedEvents.some(submittedEvent =>
+                    submittedEvent.start === event.start &&
                     event.end === submittedEvent.end
                 );
             }
@@ -364,9 +369,9 @@
                 if (calendar) {
                     calendar.destroy();
                 }
-                
+
                 const settings = loadTimeSettings();
-                
+
                 calendar = new FullCalendar.Calendar(calendarEl, {
                     headerToolbar: {
                         left: 'prev,next today',
@@ -382,7 +387,7 @@
                     nowIndicator: true,
                     height: 'auto',
                     expandRows: true,
-                    hiddenDays: [...Array(7).keys()].filter(day => 
+                    hiddenDays: [...Array(7).keys()].filter(day =>
                         day < settings.startDay || day > settings.endDay
                     ),
                     businessHours: {
@@ -404,8 +409,8 @@
                         }
 
                         // Update the event in selectedEvents
-                        const index = selectedEvents.findIndex(e => 
-                            e.start === info.oldEvent.startStr && 
+                        const index = selectedEvents.findIndex(e =>
+                            e.start === info.oldEvent.startStr &&
                             e.end === info.oldEvent.endStr
                         );
                         if (index !== -1) {
@@ -427,15 +432,15 @@
                         if (info.event.classNames.includes('selected-time')) {
                             info.el.style.backgroundColor = '#a8d5ff';
                             info.el.style.borderColor = '#a8d5ff';
-                            
+
                             // Add delete button for unsubmitted events
                             const deleteButton = document.createElement('div');
                             deleteButton.className = 'delete-event';
                             deleteButton.innerHTML = '×';
                             deleteButton.addEventListener('click', function(e) {
                                 e.stopPropagation();
-                                selectedEvents = selectedEvents.filter(event => 
-                                    event.start !== info.event.startStr || 
+                                selectedEvents = selectedEvents.filter(event =>
+                                    event.start !== info.event.startStr ||
                                     event.end !== info.event.endStr
                                 );
                                 info.event.remove();
@@ -465,7 +470,7 @@
                         saveSelectedEvents();
                     }
                 });
-                
+
                 calendar.render();
                 loadSelectedEvents();
             }
@@ -494,14 +499,14 @@
                             'Content-Type': 'application/json'
                         }
                     });
-                    
+
                     const result = await response.json();
-                    
+
                     if (!result.hasEnvCredentials) {
                         // No environment credentials, check for stored credentials
                         const email = localStorage.getItem('jiraEmail') || sessionStorage.getItem('jiraEmail');
                         const token = localStorage.getItem('jiraToken') || sessionStorage.getItem('jiraToken');
-                        
+
                         if (!email || !token) {
                             credentialsModal.show();
                         }
@@ -518,71 +523,50 @@
                 const token = document.getElementById('jiraToken').value;
                 const instance = document.getElementById('jiraInstance').value;
                 const rememberMe = document.getElementById('rememberMe').checked;
-                
+
                 if (email && token && instance) {
-                    // Validate credentials with server first
-                    try {
-                        const response = await fetch('/api/validate-credentials', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                email: email,
-                                token: token,
-                                instance: instance
-                            })
-                        });
-                        
-                        const result = await response.json();
-                        
-                        if (result.valid) {
-                            if (rememberMe) {
-                                // Only save in localStorage if user explicitly opts in
-                                localStorage.setItem('jiraEmail', email);
-                                localStorage.setItem('jiraToken', token);
-                                localStorage.setItem('jiraInstance', instance);
-                            } else {
-                                // If not remembering, only keep in session
-                                sessionStorage.setItem('jiraEmail', email);
-                                sessionStorage.setItem('jiraToken', token);
-                                sessionStorage.setItem('jiraInstance', instance);
-                                // Clear any existing localStorage items
-                                localStorage.removeItem('jiraEmail');
-                                localStorage.removeItem('jiraToken');
-                                localStorage.removeItem('jiraInstance');
-                            }
-                            credentialsModal.hide();
-                        } else {
-                            alert('Invalid credentials. Please check your email and API token.');
-                        }
-                    } catch (error) {
-                        console.error('Error validating credentials:', error);
-                        alert('Error validating credentials. Please try again.');
+                    // Save credentials without validation
+                    if (rememberMe) {
+                        // Only save in localStorage if user explicitly opts in
+                        localStorage.setItem('jiraEmail', email);
+                        localStorage.setItem('jiraToken', token);
+                        localStorage.setItem('jiraInstance', instance);
+                    } else {
+                        // If not remembering, only keep in session
+                        sessionStorage.setItem('jiraEmail', email);
+                        sessionStorage.setItem('jiraToken', token);
+                        sessionStorage.setItem('jiraInstance', instance);
+                        // Clear any existing localStorage items
+                        localStorage.removeItem('jiraEmail');
+                        localStorage.removeItem('jiraToken');
+                        localStorage.removeItem('jiraInstance');
                     }
+                    credentialsModal.hide();
+                } else {
+                    alert('Please fill in all credential fields');
                 }
             }
 
             // Initialize credentials modal
             function initializeCredentialsModal() {
                 credentialsModal = new bootstrap.Modal(document.getElementById('credentialsModal'));
-                
+
                 // Load saved credentials if they exist
                 const emailInput = document.getElementById('jiraEmail');
                 const tokenInput = document.getElementById('jiraToken');
                 const instanceInput = document.getElementById('jiraInstance');
                 const rememberMeCheckbox = document.getElementById('rememberMe');
-                
+
                 // Try localStorage first, then sessionStorage
                 const email = localStorage.getItem('jiraEmail') || sessionStorage.getItem('jiraEmail') || '';
                 const token = localStorage.getItem('jiraToken') || sessionStorage.getItem('jiraToken') || '';
                 const instance = localStorage.getItem('jiraInstance') || sessionStorage.getItem('jiraInstance') || 'foundever.atlassian.net';
-                
+
                 emailInput.value = email;
                 tokenInput.value = token;
                 instanceInput.value = instance;
                 rememberMeCheckbox.checked = !!localStorage.getItem('jiraEmail');
-                
+
                 // Add event listeners
                 document.getElementById('saveCredentials').addEventListener('click', saveCredentials);
                 document.getElementById('manageCredentials').addEventListener('click', () => {
@@ -653,13 +637,13 @@
                 const endTime = document.getElementById('endTime').value;
                 const startDay = this.value;
                 const endDay = document.getElementById('endDay').value;
-                
+
                 if (parseInt(startDay) > parseInt(endDay)) {
                     alert('Start day cannot be after end day');
                     this.value = localStorage.getItem('workingDayStart') || '1';
                     return;
                 }
-                
+
                 saveTimeSettings(startTime, endTime, startDay, endDay);
                 initializeCalendar(startTime + ':00', endTime + ':00');
             });
@@ -669,13 +653,13 @@
                 const endTime = document.getElementById('endTime').value;
                 const startDay = document.getElementById('startDay').value;
                 const endDay = this.value;
-                
+
                 if (parseInt(startDay) > parseInt(endDay)) {
                     alert('End day cannot be before start day');
                     this.value = localStorage.getItem('workingDayEnd') || '5';
                     return;
                 }
-                
+
                 saveTimeSettings(startTime, endTime, startDay, endDay);
                 initializeCalendar(startTime + ':00', endTime + ':00');
             });
@@ -688,12 +672,12 @@
             // Update clear unsubmitted functionality
             document.getElementById('clearAll').addEventListener('click', function() {
                 const unsubmittedEvents = selectedEvents.filter(event => !isEventSubmitted(event));
-                
+
                 if (unsubmittedEvents.length === 0) {
                     alert('No unsubmitted time slots to clear');
                     return;
                 }
-                
+
                 if (confirm('Are you sure you want to clear all unsubmitted time slots?')) {
                     // Remove unsubmitted events from the calendar
                     calendar.getEvents().forEach(event => {
@@ -715,7 +699,7 @@
                     alert('No time slots to clear');
                     return;
                 }
-                
+
                 if (confirm('Are you sure you want to clear ALL time slots, including those synced with Jira?')) {
                     selectedEvents = [];
                     submittedEvents = [];
@@ -729,24 +713,27 @@
             function updateEventSummary() {
                 const summaryDiv = document.getElementById('selectedEvents');
                 const submittedDiv = document.getElementById('submittedEvents');
-                
+
                 // Filter events
                 const unsubmittedEvents = selectedEvents.filter(event => !isEventSubmitted(event));
                 const submittedEventsArray = selectedEvents.filter(event => isEventSubmitted(event));
-                
+
                 // Format time without seconds
                 function formatTime(date) {
-                    return date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    return date.toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
                 }
-                
+
                 // Format duration in hours
                 function formatDuration(minutes) {
                     const hours = minutes / 60;
-                    return hours === Math.floor(hours) ? 
-                        `${hours}h` : 
+                    return hours === Math.floor(hours) ?
+                        `${hours}h` :
                         `${hours.toFixed(1).replace('.', ',')}h`;
                 }
-                
+
                 // Update unsubmitted events summary
                 if (unsubmittedEvents.length === 0) {
                     summaryDiv.innerHTML = '<div class="alert alert-info">No unsubmitted time slots selected</div>';
@@ -763,21 +750,21 @@
                             </div>
                         `;
                     }).join('');
-                    
+
                     // Add a total duration summary for unsubmitted events
                     const totalMinutes = unsubmittedEvents.reduce((total, event) => {
                         const start = new Date(event.start);
                         const end = new Date(event.end);
                         return total + (end - start) / (1000 * 60);
                     }, 0);
-                    
+
                     summaryDiv.innerHTML += `
                         <div class="alert alert-primary">
                             <strong>Total:</strong> ${formatDuration(totalMinutes)}
                         </div>
                     `;
                 }
-                
+
                 // Update submitted events summary
                 if (submittedEventsArray.length === 0) {
                     submittedDiv.innerHTML = '<div class="alert alert-info">No submitted time slots</div>';
@@ -794,14 +781,14 @@
                             </div>
                         `;
                     }).join('');
-                    
+
                     // Add a total duration summary for submitted events
                     const totalSubmittedMinutes = submittedEventsArray.reduce((total, event) => {
                         const start = new Date(event.start);
                         const end = new Date(event.end);
                         return total + (end - start) / (1000 * 60);
                     }, 0);
-                    
+
                     submittedDiv.innerHTML += `
                         <div class="alert alert-success">
                             <strong>Total Submitted:</strong> ${formatDuration(totalSubmittedMinutes)}
@@ -812,7 +799,7 @@
 
             document.getElementById('workLogForm').addEventListener('submit', async function(e) {
                 e.preventDefault();
-                
+
                 // Get credentials from storage
                 const email = localStorage.getItem('jiraEmail') || sessionStorage.getItem('jiraEmail');
                 const token = localStorage.getItem('jiraToken') || sessionStorage.getItem('jiraToken');
@@ -862,25 +849,25 @@
                     });
 
                     const result = await response.json();
-                    
+
                     if (result.success) {
                         // Add successfully submitted events to submittedEvents
                         submittedEvents.push(...newEvents);
                         saveSubmittedEvents();
-                        
+
                         // Update the calendar events to show as submitted
                         calendar.getEvents().forEach(event => {
-                            if (newEvents.some(newEvent => 
-                                newEvent.start === event.startStr && 
-                                newEvent.end === event.endStr
-                            )) {
+                            if (newEvents.some(newEvent =>
+                                    newEvent.start === event.startStr &&
+                                    newEvent.end === event.endStr
+                                )) {
                                 event.setProp('backgroundColor', '#28a745');
                                 event.setProp('borderColor', '#28a745');
                                 event.setProp('classNames', ['submitted-time']);
                                 event.setProp('title', '✓ Synced with Jira');
                             }
                         });
-                        
+
                         updateEventSummary();
 
                         const issueUrl = `https://${instance}/browse/${issueKey}`;
@@ -905,7 +892,7 @@
                     alert('Please enter a Jira issue key');
                     return;
                 }
-                
+
                 const instance = localStorage.getItem('jiraInstance') || sessionStorage.getItem('jiraInstance') || 'foundever.atlassian.net';
                 const issueUrl = `https://${instance}/browse/${issueKey}`;
                 window.open(issueUrl, '_blank');
@@ -913,4 +900,5 @@
         });
     </script>
 </body>
+
 </html>
