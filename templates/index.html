@@ -608,6 +608,7 @@
             const savedTimes = loadTimeSettings();
             loadSubmittedEvents();
             loadDevMode();
+            loadIssueKey();
             initializeCalendar(savedTimes.startTime, savedTimes.endTime);
             initializeCredentialsModal();
             checkCredentials();
@@ -797,6 +798,19 @@
                 }
             }
 
+            // Load issue key from localStorage
+            function loadIssueKey() {
+                const savedIssueKey = localStorage.getItem('issueKey');
+                if (savedIssueKey) {
+                    document.getElementById('issueKey').value = savedIssueKey;
+                }
+            }
+
+            // Save issue key to localStorage
+            function saveIssueKey(issueKey) {
+                localStorage.setItem('issueKey', issueKey);
+            }
+
             document.getElementById('workLogForm').addEventListener('submit', async function(e) {
                 e.preventDefault();
 
@@ -825,6 +839,9 @@
                 }
 
                 const issueKey = document.getElementById('issueKey').value;
+
+                // Save the issue key for future use
+                saveIssueKey(issueKey);
 
                 const eventsWithComments = newEvents.map(event => ({
                     ...event,
@@ -892,6 +909,9 @@
                     alert('Please enter a Jira issue key');
                     return;
                 }
+
+                // Save the issue key for future use
+                saveIssueKey(issueKey);
 
                 const instance = localStorage.getItem('jiraInstance') || sessionStorage.getItem('jiraInstance') || 'foundever.atlassian.net';
                 const issueUrl = `https://${instance}/browse/${issueKey}`;
