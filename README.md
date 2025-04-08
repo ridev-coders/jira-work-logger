@@ -44,7 +44,7 @@ pip install -r requirements.txt
 python app.py
 ```
 
-3. Access the application at `http://localhost:5000`
+3. Access the application at `http://localhost:8080`
 
 ## Running Locally with Docker
 
@@ -55,10 +55,10 @@ docker build -t jira-work-logger .
 
 2. Run the container:
 ```bash
-docker run --rm -p 5000:5000 jira-work-logger
+docker run --rm -p 8080:8080 jira-work-logger
 ```
 
-3. Access the application at `http://localhost:5000`
+3. Access the application at `http://localhost:8080`
 
 ## Deployment to Google Cloud Run
 
