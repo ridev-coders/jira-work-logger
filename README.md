@@ -48,6 +48,19 @@ python app.py
 
 ## Running Locally with Docker
 
+### Development Mode (with hot-reloading)
+
+1. Use Docker Compose for development with automatic code reloading:
+```bash
+docker-compose up
+```
+
+2. Access the application at `http://localhost:8080`
+
+3. Make changes to your code (HTML, Python files) - the application will automatically reload!
+
+### Production Mode
+
 1. Build the container image:
 ```bash
 docker build -t jira-work-logger .
@@ -59,6 +72,10 @@ docker run --rm -p 8080:8080 jira-work-logger
 ```
 
 3. Access the application at `http://localhost:8080`
+
+### Development vs Production
+- **Development**: Uses volumes to mount your local code into the container, enabling hot-reloading
+- **Production**: Builds a clean image with the code copied into it, more secure and stable
 
 ## Deployment to Google Cloud Run
 

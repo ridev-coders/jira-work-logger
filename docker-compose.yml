@@ -1,0 +1,14 @@
+version: '3'
+
+services:
+  jira-work-logger:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/app
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+      - PORT=8080
+    command: python -m flask run --host=0.0.0.0 --port=8080 --reload 
